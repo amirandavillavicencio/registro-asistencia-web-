@@ -1,0 +1,6 @@
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
+data/matriz_estudiantes.sql
+data/smoke-export.xlsx
+data/exports/
