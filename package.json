@@ -1,12 +1,10 @@
 {
-  "name": "registro-asistencia-vercel-mvp",
+  "name": "ciac-registro",
   "version": "1.0.0",
   "private": true,
-  "description": "MVP mínimo de registro de asistencia listo para Vercel",
-  "scripts": {
-    "start": "vercel dev"
-  },
-  "engines": {
-    "node": ">=22"
+  "description": "CIAC Registro MVP (Vercel + Supabase)",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "xlsx": "^0.18.5"
   }
 }
