@@ -1,80 +1,85 @@
-const { spawn } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
-const http = require('node:http');
-const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
+const buscar = require('../api/buscar');
+const registrar = require('../api/registrar');
+const registrosHoy = require('../api/registros-hoy');
 
-const repo = process.cwd();
-const dbPath = path.join(repo, 'data', 'ciac_registro.sqlite');
-const exportDir = path.join(repo, 'data', 'exports');
-fs.rmSync(dbPath, { force: true });
-fs.rmSync(exportDir, { recursive: true, force: true });
-fs.mkdirSync(path.join(repo, 'data'), { recursive: true });
-fs.writeFileSync(path.join(repo, 'data', 'matriz_estudiantes.sql'), `
-CREATE TABLE matriz_estudiantes (rut TEXT, dv TEXT, nombre TEXT, carrera_ingreso TEXT, cohorte TEXT);
-INSERT INTO matriz_estudiantes VALUES ('12345678','K','Ana Pérez','Ingeniería Civil Informática','2023');
-INSERT INTO matriz_estudiantes VALUES ('87654321','1','Luis Soto','Ingeniería Civil','2022');
-`);
+const localStore = path.join(process.cwd(), 'data', 'attendance-records.json');
+if (fs.existsSync(localStore)) fs.unlinkSync(localStore);
 
-function request(method, route, body) {
+function runHandler(handler, { method = 'GET', url = '/', body } = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.request({ hostname: '127.0.0.1', port: 3000, path: route, method, headers: body ? { 'Content-Type': 'application/json' } : {} }, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => { chunks.push(chunk); });
-      res.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        resolve({ status: res.statusCode, body: buffer.toString('utf8'), buffer, headers: res.headers });
-      });
-    });
-    req.on('error', reject);
-    if (body) req.write(JSON.stringify(body));
-    req.end();
+    const chunks = [];
+    const req = {
+      method,
+      url,
+      headers: body ? { 'content-type': 'application/json' } : {},
+      [Symbol.asyncIterator]: async function* iterator() {
+        if (body) {
+          yield Buffer.from(JSON.stringify(body));
+        }
+      }
+    };
+
+    const res = {
+      statusCode: 200,
+      headers: {},
+      setHeader(name, value) {
+        this.headers[name.toLowerCase()] = value;
+      },
+      end(value) {
+        chunks.push(value ? Buffer.from(value) : Buffer.alloc(0));
+        try {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          resolve({ statusCode: this.statusCode, body: raw ? JSON.parse(raw) : null });
+        } catch (error) {
+          reject(error);
+        }
+      }
+    };
+
+    Promise.resolve(handler(req, res)).catch(reject);
   });
 }
 
 (async () => {
-  const server = spawn('node', ['backend/server.js'], { cwd: repo, stdio: 'inherit' });
-  await new Promise((r) => setTimeout(r, 1200));
-  try {
-    const health = await request('GET', '/api/health');
-    const healthBody = JSON.parse(health.body);
-    assert.equal(healthBody.matrizDisponible, true);
-
-    const student = await request('GET', '/api/student/12345678');
-    const studentBody = JSON.parse(student.body);
-    assert.equal(studentBody.student.nombre, 'Ana Pérez');
-    assert.equal(studentBody.student.dv, 'K');
-
-    const entry = await request('POST', '/api/attendance/register', {
-      campus: 'Campus San Joaquín', run: '12345678', dv: 'k', nombre: 'Ana Pérez', carrera: 'Ingeniería Civil Informática', jornada: 'Diurno', anio_ingreso: '2023', actividad: 'Consultas', tematica: 'Programación', espacio: 'Sala 1', observaciones: 'Primera visita'
-    });
-    assert.equal(JSON.parse(entry.body).action, 'entrada');
-
-    const today = await request('GET', '/api/records/today');
-    assert.equal(JSON.parse(today.body).records.length >= 1, true);
-
-    const exit = await request('POST', '/api/attendance/register', { campus: 'Campus San Joaquín', run: '12345678', dv: 'K' });
-    assert.equal(JSON.parse(exit.body).action, 'salida');
-
-    const report = await request('GET', '/api/reports/summary');
-    const reportBody = JSON.parse(report.body);
-    assert.equal(reportBody.kpis.total_registros >= 1, true);
-
-    const exportRes = await request('GET', '/api/export/xlsx');
-    assert.equal(exportRes.status, 200);
-    const tempExport = path.join(repo, 'data', 'smoke-export.xlsx');
-    fs.writeFileSync(tempExport, exportRes.buffer);
-    const list = spawn('unzip', ['-l', tempExport], { cwd: repo });
-    let unzipOutput = '';
-    for await (const chunk of list.stdout) unzipOutput += chunk.toString();
-    await new Promise((resolve) => list.on('close', resolve));
-    assert.match(unzipOutput, /xl\/worksheets\/sheet1.xml/);
-
-    console.log('Smoke test OK');
-  } finally {
-    server.kill('SIGTERM');
+  const lookup = await runHandler(buscar, { url: '/api/buscar?run=22222222' });
+  if (lookup.statusCode !== 200 || typeof lookup.body.found !== 'boolean') {
+    throw new Error('Falló /api/buscar');
   }
-})().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+
+  const invalid = await runHandler(registrar, {
+    method: 'POST',
+    url: '/api/registrar',
+    body: { run: '123', dv: '1', nombre: 'Test' }
+  });
+  if (invalid.statusCode !== 400) {
+    throw new Error('Debió rechazar RUT inválido');
+  }
+
+  const entrada = await runHandler(registrar, {
+    method: 'POST',
+    url: '/api/registrar',
+    body: { run: '11111111', dv: '1', nombre: 'Persona Demo', carrera: 'Piloto', anio_ingreso: '2024' }
+  });
+  if (entrada.statusCode !== 200 || entrada.body.action !== 'entrada') {
+    throw new Error('Falló registro de entrada');
+  }
+
+  const salida = await runHandler(registrar, {
+    method: 'POST',
+    url: '/api/registrar',
+    body: { run: '11111111', dv: '1', nombre: 'Persona Demo', carrera: 'Piloto', anio_ingreso: '2024' }
+  });
+  if (salida.statusCode !== 200 || salida.body.action !== 'salida') {
+    throw new Error('Falló registro de salida');
+  }
+
+  const hoy = await runHandler(registrosHoy, { url: '/api/registros-hoy' });
+  if (hoy.statusCode !== 200 || !Array.isArray(hoy.body.records)) {
+    throw new Error('Falló /api/registros-hoy');
+  }
+
+  console.log('Smoke test OK');
+  if (fs.existsSync(localStore)) fs.unlinkSync(localStore);
+})();
