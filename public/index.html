@@ -3,101 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CIAC Registro MVP</title>
-  <link rel="stylesheet" href="/public/styles.css">
+  <title>Registro de asistencia MVP</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="app-shell">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">CIAC Registro</p>
-        <h1>MVP listo para Vercel</h1>
-        <p class="hero-copy">Ingreso de RUN, autocompletado desde matriz, registro de entrada/salida y vista de registros del día.</p>
+  <main class="container">
+    <section class="panel">
+      <h1>Registro de asistencia</h1>
+      <p class="intro">MVP mínimo para Vercel con frontend estático y funciones serverless.</p>
+
+      <form id="registerForm" class="form" novalidate>
+        <div class="row row-run">
+          <div>
+            <label for="run">RUN</label>
+            <input id="run" name="run" type="text" inputmode="numeric" autocomplete="off" placeholder="12345678">
+          </div>
+          <div>
+            <label for="dv">DV</label>
+            <input id="dv" name="dv" type="text" maxlength="1" autocomplete="off" placeholder="K">
+          </div>
+        </div>
+
+        <div>
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" type="text" autocomplete="off" placeholder="Nombre completo">
+        </div>
+
+        <div>
+          <label for="carrera">Carrera</label>
+          <input id="carrera" name="carrera" type="text" autocomplete="off" placeholder="Carrera de ingreso">
+        </div>
+
+        <div>
+          <label for="anio_ingreso">Cohorte</label>
+          <input id="anio_ingreso" name="anio_ingreso" type="text" inputmode="numeric" autocomplete="off" placeholder="2022">
+        </div>
+
+        <p id="lookupInfo" class="hint">Escribe el RUN con solo números. El autocompletado no bloquea la escritura y la validación del RUT ocurre solo al registrar.</p>
+
+        <div class="actions">
+          <button type="button" class="secondary" id="clearBtn">Limpiar</button>
+          <button type="submit" id="submitBtn">Registrar</button>
+        </div>
+      </form>
+
+      <div id="message" class="message hidden"></div>
+    </section>
+
+    <section class="panel">
+      <div class="header-row">
+        <div>
+          <h2>Registros de hoy</h2>
+          <p class="intro">La tabla se actualiza sin recargar la página.</p>
+        </div>
+        <strong id="summary">0 registros</strong>
       </div>
-      <div class="hero-status">
-        <strong id="currentDate"></strong>
-        <span id="currentTime"></span>
-        <small id="storageMode">Persistencia: cargando...</small>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>RUN</th>
+              <th>Nombre</th>
+              <th>Carrera</th>
+              <th>Entrada</th>
+              <th>Salida</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody">
+            <tr>
+              <td colspan="6" class="empty">No hay registros aún.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </header>
+    </section>
+  </main>
 
-    <main class="content-grid">
-      <section class="card">
-        <div class="section-head">
-          <h2>Formulario mínimo</h2>
-          <p>El RUN acepta solo números. La validación del RUT ocurre solo al registrar.</p>
-        </div>
-
-        <form id="registerForm" novalidate>
-          <div class="field-row compact">
-            <div>
-              <label for="run">RUN</label>
-              <input id="run" name="run" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12345678">
-            </div>
-            <div>
-              <label for="dv">DV</label>
-              <input id="dv" name="dv" type="text" maxlength="1" autocomplete="off" placeholder="K">
-            </div>
-          </div>
-
-          <div>
-            <label for="nombre">Nombre</label>
-            <input id="nombre" name="nombre" type="text" autocomplete="off" placeholder="Autocompleta si existe en matriz">
-          </div>
-
-          <div>
-            <label for="carrera">Carrera</label>
-            <input id="carrera" name="carrera" type="text" autocomplete="off" placeholder="Autocompleta desde carrera_ingreso">
-          </div>
-
-          <div>
-            <label for="anio_ingreso">Año ingreso</label>
-            <input id="anio_ingreso" name="anio_ingreso" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="Autocompleta desde cohorte">
-          </div>
-
-          <div id="lookupInfo" class="notice">Escribe el RUN sin puntos ni guion. El formulario no bloquea mientras busca en la matriz.</div>
-
-          <div class="actions">
-            <button type="button" class="ghost" id="clearBtn">Limpiar</button>
-            <button type="submit" id="submitBtn">Registrar</button>
-          </div>
-        </form>
-
-        <div id="message" class="message hidden"></div>
-      </section>
-
-      <section class="card">
-        <div class="section-head section-head-inline">
-          <div>
-            <h2>Registros del día</h2>
-            <p>Se registra entrada si no existe una abierta; si existe, se registra salida.</p>
-          </div>
-          <div id="summary" class="summary">Cargando...</div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Hora entrada</th>
-                <th>Hora salida</th>
-                <th>RUN</th>
-                <th>Nombre</th>
-                <th>Carrera</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody id="recordsBody">
-              <tr>
-                <td colspan="6" class="empty">Cargando registros...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <script src="/public/app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
