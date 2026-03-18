@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CIAC Registro MVP</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>CIAC Registro</h1>
+        <p>MVP funcional para registro de entrada y salida</p>
+      </div>
+      <div class="status-box">
+        <div id="currentDate"></div>
+        <div id="currentTime" class="clock"></div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel form-panel">
+        <h2>Identificación de estudiante</h2>
+        <p class="muted">Primero resuelve RUN, autocompletado y registro. Sin extras.</p>
+
+        <form id="registerForm" novalidate>
+          <div class="row two-cols">
+            <div>
+              <label for="run">RUN</label>
+              <input id="run" name="run" type="text" inputmode="numeric" autocomplete="off" placeholder="Solo números, sin puntos ni guion">
+            </div>
+            <div>
+              <label for="dv">DV</label>
+              <input id="dv" name="dv" type="text" maxlength="1" autocomplete="off" placeholder="0-9 o K">
+            </div>
+          </div>
+
+          <div>
+            <label for="nombre">Nombre</label>
+            <input id="nombre" name="nombre" type="text" autocomplete="off" placeholder="Se completa si existe; si no, ingrésalo manualmente">
+          </div>
+
+          <div>
+            <label for="carrera">Carrera</label>
+            <input id="carrera" name="carrera" type="text" autocomplete="off" placeholder="Se completa si existe">
+          </div>
+
+          <div>
+            <label for="anio_ingreso">Año de ingreso</label>
+            <input id="anio_ingreso" name="anio_ingreso" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="Ej: 2024">
+          </div>
+
+          <div class="info-strip" id="lookupInfo">Escribe el RUN completo. La validación ocurre solo al registrar.</div>
+          <div class="actions">
+            <button type="button" class="secondary" id="clearBtn">Limpiar</button>
+            <button type="submit" id="submitBtn">Registrar</button>
+          </div>
+        </form>
+
+        <div id="message" class="message hidden"></div>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="table-header">
+          <div>
+            <h2>Registros del día</h2>
+            <p class="muted">Entrada, salida y estado real del día actual</p>
+          </div>
+          <div id="summary" class="summary">Cargando...</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>RUN</th>
+                <th>Nombre</th>
+                <th>Carrera</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody">
+              <tr>
+                <td colspan="6" class="empty">Cargando registros...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
