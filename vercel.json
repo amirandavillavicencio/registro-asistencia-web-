@@ -1,10 +1,9 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "/api/buscar", "dest": "/api/buscar.js" },
-    { "src": "/api/registrar", "dest": "/api/registrar.js" },
-    { "src": "/api/registros-hoy", "dest": "/api/registros-hoy.js" },
-    { "src": "/public/(.*)", "dest": "/public/$1" },
-    { "src": "/(.*)", "dest": "/public/index.html" }
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" },
+    { "source": "/styles.css", "destination": "/public/styles.css" },
+    { "source": "/app.js", "destination": "/public/app.js" }
   ]
 }

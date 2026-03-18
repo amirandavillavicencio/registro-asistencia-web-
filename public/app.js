@@ -2,20 +2,17 @@ const runInput = document.getElementById('run');
 const dvInput = document.getElementById('dv');
 const nombreInput = document.getElementById('nombre');
 const carreraInput = document.getElementById('carrera');
-const anioInput = document.getElementById('anio_ingreso');
+const anioIngresoInput = document.getElementById('anio_ingreso');
 const registerForm = document.getElementById('registerForm');
-const recordsBody = document.getElementById('recordsBody');
-const summary = document.getElementById('summary');
-const lookupInfo = document.getElementById('lookupInfo');
-const messageBox = document.getElementById('message');
 const clearBtn = document.getElementById('clearBtn');
 const submitBtn = document.getElementById('submitBtn');
-const currentDate = document.getElementById('currentDate');
-const currentTime = document.getElementById('currentTime');
-const storageMode = document.getElementById('storageMode');
+const messageBox = document.getElementById('message');
+const lookupInfo = document.getElementById('lookupInfo');
+const summary = document.getElementById('summary');
+const recordsBody = document.getElementById('recordsBody');
 
-let lookupTimer = null;
-let lastLookupRun = '';
+let searchTimer;
+let latestRun = '';
 
 function sanitizeRun(value) {
   return String(value || '').replace(/\D/g, '');
@@ -25,71 +22,41 @@ function sanitizeDv(value) {
   return String(value || '').toUpperCase().replace(/[^0-9K]/g, '').slice(0, 1);
 }
 
-function setClock() {
-  const now = new Date();
-  currentDate.textContent = now.toLocaleDateString('es-CL', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  });
-  currentTime.textContent = now.toLocaleTimeString('es-CL');
-}
-
 function showMessage(text, type) {
   messageBox.textContent = text;
   messageBox.className = `message ${type}`;
 }
 
 function hideMessage() {
-  messageBox.className = 'message hidden';
   messageBox.textContent = '';
-}
-
-function fillStudent(student) {
-  if (student.dv) dvInput.value = student.dv;
-  nombreInput.value = student.nombre || '';
-  carreraInput.value = student.carrera || '';
-  anioInput.value = student.anio_ingreso || '';
-  lookupInfo.textContent = student.nombre
-    ? 'Alumno encontrado en la matriz.'
-    : 'RUN encontrado en la matriz. Completa el nombre manualmente si no viene informado.';
+  messageBox.className = 'message hidden';
 }
 
 function clearAutofill() {
   dvInput.value = '';
   nombreInput.value = '';
   carreraInput.value = '';
-  anioInput.value = '';
+  anioIngresoInput.value = '';
 }
 
-async function lookupStudent() {
-  const run = sanitizeRun(runInput.value);
-  if (run.length < 3) {
-    lookupInfo.textContent = 'Escribe al menos 3 dígitos para consultar la matriz.';
-    clearAutofill();
+function renderRecords(records) {
+  if (!records.length) {
+    recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No hay registros hoy.</td></tr>';
+    summary.textContent = '0 registros';
     return;
   }
 
-  lastLookupRun = run;
-
-  try {
-    const response = await fetch(`/api/buscar?run=${encodeURIComponent(run)}`);
-    const data = await response.json();
-
-    if (run !== sanitizeRun(runInput.value) || lastLookupRun !== run) {
-      return;
-    }
-
-    if (data.found) {
-      fillStudent(data.student);
-    } else {
-      clearAutofill();
-      lookupInfo.textContent = 'No se encontró coincidencia en la matriz. Puedes completar los datos manualmente.';
-    }
-  } catch (error) {
-    lookupInfo.textContent = 'No se pudo consultar la matriz en este momento.';
-  }
+  summary.textContent = `${records.length} registros`;
+  recordsBody.innerHTML = records.map((record) => `
+    <tr>
+      <td>${record.run_completo}</td>
+      <td>${escapeHtml(record.nombre)}</td>
+      <td>${escapeHtml(record.carrera || '')}</td>
+      <td>${record.hora_entrada}</td>
+      <td>${record.hora_salida || '-'}</td>
+      <td><span class="status">${record.estado}</span></td>
+    </tr>
+  `).join('');
 }
 
 function escapeHtml(value) {
@@ -98,55 +65,60 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/'/g, '&#39;');
 }
 
-async function loadRecords() {
+async function buscarAlumno() {
+  const run = sanitizeRun(runInput.value);
+
+  if (!run) {
+    clearAutofill();
+    lookupInfo.textContent = 'Escribe el RUN con solo números. El autocompletado no bloquea la escritura y la validación del RUT ocurre solo al registrar.';
+    return;
+  }
+
+  latestRun = run;
+
   try {
-    const response = await fetch('/api/registros-hoy');
+    const response = await fetch(`/api/buscar?run=${encodeURIComponent(run)}`);
     const data = await response.json();
-    const records = data.records || [];
 
-    storageMode.textContent = `Persistencia: ${data.storage || 'desconocida'}`;
-
-    if (records.length === 0) {
-      recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No hay registros hoy.</td></tr>';
-      summary.textContent = '0 registros • 0 abiertos';
+    if (latestRun !== run || sanitizeRun(runInput.value) !== run) {
       return;
     }
 
-    const abiertos = records.filter((record) => !record.hora_salida).length;
-    summary.textContent = `${records.length} registros • ${abiertos} abiertos`;
-    recordsBody.innerHTML = records.map((record) => `
-      <tr>
-        <td>${record.hora_entrada}</td>
-        <td>${record.hora_salida}</td>
-        <td>${record.run_completo}</td>
-        <td>${escapeHtml(record.nombre)}</td>
-        <td>${escapeHtml(record.carrera)}</td>
-        <td><span class="badge ${record.hora_salida ? 'closed' : 'open'}">${record.estado}</span></td>
-      </tr>
-    `).join('');
+    if (!data.found) {
+      clearAutofill();
+      lookupInfo.textContent = 'No se encontró el RUN en la base simulada. Puedes completar los datos manualmente.';
+      return;
+    }
+
+    dvInput.value = data.student.dv || '';
+    nombreInput.value = data.student.nombre || '';
+    carreraInput.value = data.student.carrera_ingreso || '';
+    anioIngresoInput.value = data.student.cohorte || '';
+    lookupInfo.textContent = 'Alumno encontrado. Puedes editar los datos antes de registrar.';
   } catch (error) {
-    storageMode.textContent = 'Persistencia: error';
-    recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No fue posible cargar los registros.</td></tr>';
-    summary.textContent = 'Error';
+    lookupInfo.textContent = 'No fue posible consultar el autocompletado en este momento.';
   }
 }
 
-function resetForm() {
-  registerForm.reset();
-  hideMessage();
-  lookupInfo.textContent = 'Escribe el RUN sin puntos ni guion. El formulario no bloquea mientras busca en la matriz.';
-  runInput.focus();
+async function cargarRegistros() {
+  try {
+    const response = await fetch('/api/registros-hoy');
+    const data = await response.json();
+    renderRecords(Array.isArray(data.records) ? data.records : []);
+  } catch (error) {
+    recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No fue posible cargar los registros.</td></tr>';
+    summary.textContent = 'Error al cargar';
+  }
 }
 
 runInput.addEventListener('input', () => {
   runInput.value = sanitizeRun(runInput.value);
   hideMessage();
-
-  if (lookupTimer) clearTimeout(lookupTimer);
-  lookupTimer = setTimeout(lookupStudent, 250);
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(buscarAlumno, 250);
 });
 
 dvInput.addEventListener('input', () => {
@@ -163,7 +135,7 @@ registerForm.addEventListener('submit', async (event) => {
     dv: sanitizeDv(dvInput.value),
     nombre: nombreInput.value.trim(),
     carrera: carreraInput.value.trim(),
-    anio_ingreso: anioInput.value.trim()
+    anio_ingreso: anioIngresoInput.value.trim()
   };
 
   submitBtn.disabled = true;
@@ -171,21 +143,20 @@ registerForm.addEventListener('submit', async (event) => {
   try {
     const response = await fetch('/api/registrar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(payload)
     });
+
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'No fue posible registrar.');
+      throw new Error(data.error || 'No se pudo registrar.');
     }
 
     showMessage(data.message, 'success');
-    await loadRecords();
-
-    if (data.action === 'salida') {
-      resetForm();
-    }
+    await cargarRegistros();
   } catch (error) {
     showMessage(error.message, 'error');
   } finally {
@@ -194,11 +165,12 @@ registerForm.addEventListener('submit', async (event) => {
 });
 
 clearBtn.addEventListener('click', () => {
+  registerForm.reset();
+  hideMessage();
   clearAutofill();
-  resetForm();
+  lookupInfo.textContent = 'Escribe el RUN con solo números. El autocompletado no bloquea la escritura y la validación del RUT ocurre solo al registrar.';
+  runInput.focus();
 });
 
-setClock();
-setInterval(setClock, 1000);
-loadRecords();
+cargarRegistros();
 runInput.focus();

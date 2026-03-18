@@ -1,12 +1,10 @@
 {
-  "name": "ciac-registro-mvp",
-  "version": "2.0.0",
-  "description": "CIAC Registro MVP listo para GitHub + Vercel",
+  "name": "registro-asistencia-vercel-mvp",
+  "version": "1.0.0",
   "private": true,
-  "main": "server.js",
+  "description": "MVP mínimo de registro de asistencia listo para Vercel",
   "scripts": {
-    "start": "node server.js",
-    "smoke": "node scripts/smoke-test.js"
+    "start": "vercel dev"
   },
   "engines": {
     "node": ">=22"
