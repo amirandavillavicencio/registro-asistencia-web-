@@ -1,0 +1,12 @@
+{
+  "name": "ciac-registro-mvp",
+  "version": "1.0.0",
+  "description": "MVP funcional de CIAC Registro",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
