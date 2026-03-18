@@ -1,54 +1,51 @@
-# CIAC Registro MVP
+# CIAC Registro MVP para Vercel
 
-MVP funcional enfocado solo en lo crítico:
+MVP funcional enfocado en cuatro flujos:
 
-1. ingreso correcto de RUN
-2. autocompletado desde matriz local
-3. registro de entrada y salida
-4. tabla del día
+1. ingresar RUN correctamente
+2. autocompletar datos desde la matriz
+3. registrar entrada y salida correctamente
+4. mostrar registros del día
 
-## Stack
+## Stack objetivo
 
-- Node.js
-- Express
-- SQLite local usando `node:sqlite`
-- HTML + CSS + JavaScript simple
+- Frontend simple con HTML, CSS y JavaScript.
+- Backend con rutas serverless en `api/` para Vercel.
+- Persistencia compatible con Vercel usando REST de Vercel KV si defines `KV_REST_API_URL` y `KV_REST_API_TOKEN`.
+- Fallback local en `data/attendance-records.json` para desarrollo local sin depender de SQLite persistente para registros.
 
-## Cómo ejecutar
+## Endpoints
+
+- `GET /api/buscar?run=12345678`
+- `POST /api/registrar`
+- `GET /api/registros-hoy`
+
+## Fuente de datos
+
+La matriz se lee desde `data/matrizsjvita.db` en modo solo lectura y se mapea así:
+
+- `rut` -> `run`
+- `dv` -> `dv`
+- `carrera_ingreso` -> `carrera`
+- `cohorte` -> `anio_ingreso`
+
+Si existe una columna de nombre equivalente, también se autocompleta.
+
+## Desarrollo local
 
 ```bash
-npm install
-npm start
+node server.js
 ```
 
-Abre `http://localhost:3000`
+Luego abre `http://localhost:3000`.
 
-## Estructura
+## Despliegue en Vercel
 
-- `server.js`: backend y lógica de base de datos
-- `public/index.html`: interfaz MVP
-- `public/styles.css`: estilos simples
-- `public/app.js`: lógica frontend
-- `data/ciac_registro.db`: base local generada por la app
-- `data/matrizsjvita.db`: base de respaldo cargada en este MVP
+1. Sube este repo a GitHub.
+2. Importa el proyecto en Vercel.
+3. Configura estas variables de entorno si quieres persistencia real en Vercel:
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
+4. Despliega.
 
-## Carga de matriz
-
-El backend intenta en este orden:
-
-1. `data/matriz_estudiantes.sql`
-2. `data/matrizsjvita.db`
-
-Si existe `data/matriz_estudiantes.sql` y la tabla `matriz_estudiantes` no está creada, la importa automáticamente.
-Si no existe ese SQL, usa la base local de respaldo.
-
-## Nota importante sobre el nombre
-
-La base subida `matrizsjvita.db` no trae columna de nombre. Por eso:
-
-- sí autocompleta DV
-- sí autocompleta carrera
-- sí autocompleta año de ingreso
-- el nombre queda manual
-
-Si luego reemplazas la fuente por un SQL que sí tenga un campo de nombre, el backend lo detecta automáticamente y también autocompleta ese dato.
+Si no configuras KV, las funciones seguirán respondiendo, pero en Vercel los registros no serán persistentes entre invocaciones.

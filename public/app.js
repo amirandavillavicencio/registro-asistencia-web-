@@ -12,9 +12,10 @@ const clearBtn = document.getElementById('clearBtn');
 const submitBtn = document.getElementById('submitBtn');
 const currentDate = document.getElementById('currentDate');
 const currentTime = document.getElementById('currentTime');
+const storageMode = document.getElementById('storageMode');
 
 let lookupTimer = null;
-let lastFound = false;
+let lastLookupRun = '';
 
 function sanitizeRun(value) {
   return String(value || '').replace(/\D/g, '');
@@ -24,13 +25,13 @@ function sanitizeDv(value) {
   return String(value || '').toUpperCase().replace(/[^0-9K]/g, '').slice(0, 1);
 }
 
-function formatDateTime() {
+function setClock() {
   const now = new Date();
   currentDate.textContent = now.toLocaleDateString('es-CL', {
     weekday: 'long',
-    year: 'numeric',
+    day: '2-digit',
     month: 'long',
-    day: 'numeric'
+    year: 'numeric'
   });
   currentTime.textContent = now.toLocaleTimeString('es-CL');
 }
@@ -45,92 +46,49 @@ function hideMessage() {
   messageBox.textContent = '';
 }
 
-function resetForm() {
-  registerForm.reset();
-  lookupInfo.textContent = 'Escribe el RUN completo. La validación ocurre solo al registrar.';
-  nombreInput.readOnly = false;
-  lastFound = false;
-  hideMessage();
-  runInput.focus();
-}
-
-function setFoundStudent(student) {
-  dvInput.value = student.dv || '';
+function fillStudent(student) {
+  if (student.dv) dvInput.value = student.dv;
   nombreInput.value = student.nombre || '';
   carreraInput.value = student.carrera || '';
   anioInput.value = student.anio_ingreso || '';
-  nombreInput.readOnly = Boolean(student.nombre);
-  lastFound = true;
   lookupInfo.textContent = student.nombre
-    ? 'Alumno encontrado en la matriz. Nombre bloqueado porque viene desde la base.'
-    : 'RUN encontrado en la matriz, pero la base cargada no trae nombre. Puedes ingresarlo manualmente.';
+    ? 'Alumno encontrado en la matriz.'
+    : 'RUN encontrado en la matriz. Completa el nombre manualmente si no viene informado.';
 }
 
-function clearAutofillKeepRun() {
+function clearAutofill() {
   dvInput.value = '';
   nombreInput.value = '';
   carreraInput.value = '';
   anioInput.value = '';
-  nombreInput.readOnly = false;
-  lastFound = false;
-  lookupInfo.textContent = 'No se encontró coincidencia en la matriz. Puedes completar los datos manualmente.';
 }
 
 async function lookupStudent() {
   const run = sanitizeRun(runInput.value);
-
   if (run.length < 3) {
-    nombreInput.readOnly = false;
-    lookupInfo.textContent = 'Escribe al menos 3 dígitos para buscar en la matriz.';
+    lookupInfo.textContent = 'Escribe al menos 3 dígitos para consultar la matriz.';
+    clearAutofill();
     return;
   }
 
+  lastLookupRun = run;
+
   try {
-    const response = await fetch(`/api/students/by-run/${run}`);
+    const response = await fetch(`/api/buscar?run=${encodeURIComponent(run)}`);
     const data = await response.json();
 
-    if (data.found) {
-      setFoundStudent(data.student);
-    } else {
-      clearAutofillKeepRun();
-    }
-  } catch (error) {
-    lookupInfo.textContent = 'No se pudo consultar la matriz en este momento.';
-  }
-}
-
-async function loadTodayRecords() {
-  try {
-    const response = await fetch('/api/records/today');
-    const data = await response.json();
-    const records = data.records || [];
-
-    if (records.length === 0) {
-      recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No hay registros hoy.</td></tr>';
-      summary.textContent = '0 registros • 0 dentro';
+    if (run !== sanitizeRun(runInput.value) || lastLookupRun !== run) {
       return;
     }
 
-    const openCount = records.filter((record) => !record.hora_salida).length;
-    summary.textContent = `${records.length} registros • ${openCount} dentro`;
-
-    recordsBody.innerHTML = records.map((record) => `
-      <tr>
-        <td>${record.hora_entrada || ''}</td>
-        <td>${record.hora_salida || ''}</td>
-        <td>${record.run_completo}</td>
-        <td>${escapeHtml(record.nombre)}</td>
-        <td>${escapeHtml(record.carrera)}</td>
-        <td>
-          <span class="badge ${record.hora_salida ? 'closed' : 'open'}">
-            ${record.estado}
-          </span>
-        </td>
-      </tr>
-    `).join('');
+    if (data.found) {
+      fillStudent(data.student);
+    } else {
+      clearAutofill();
+      lookupInfo.textContent = 'No se encontró coincidencia en la matriz. Puedes completar los datos manualmente.';
+    }
   } catch (error) {
-    recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No se pudo cargar la tabla del día.</td></tr>';
-    summary.textContent = 'Error al cargar';
+    lookupInfo.textContent = 'No se pudo consultar la matriz en este momento.';
   }
 }
 
@@ -141,6 +99,46 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+async function loadRecords() {
+  try {
+    const response = await fetch('/api/registros-hoy');
+    const data = await response.json();
+    const records = data.records || [];
+
+    storageMode.textContent = `Persistencia: ${data.storage || 'desconocida'}`;
+
+    if (records.length === 0) {
+      recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No hay registros hoy.</td></tr>';
+      summary.textContent = '0 registros • 0 abiertos';
+      return;
+    }
+
+    const abiertos = records.filter((record) => !record.hora_salida).length;
+    summary.textContent = `${records.length} registros • ${abiertos} abiertos`;
+    recordsBody.innerHTML = records.map((record) => `
+      <tr>
+        <td>${record.hora_entrada}</td>
+        <td>${record.hora_salida}</td>
+        <td>${record.run_completo}</td>
+        <td>${escapeHtml(record.nombre)}</td>
+        <td>${escapeHtml(record.carrera)}</td>
+        <td><span class="badge ${record.hora_salida ? 'closed' : 'open'}">${record.estado}</span></td>
+      </tr>
+    `).join('');
+  } catch (error) {
+    storageMode.textContent = 'Persistencia: error';
+    recordsBody.innerHTML = '<tr><td colspan="6" class="empty">No fue posible cargar los registros.</td></tr>';
+    summary.textContent = 'Error';
+  }
+}
+
+function resetForm() {
+  registerForm.reset();
+  hideMessage();
+  lookupInfo.textContent = 'Escribe el RUN sin puntos ni guion. El formulario no bloquea mientras busca en la matriz.';
+  runInput.focus();
 }
 
 runInput.addEventListener('input', () => {
@@ -171,25 +169,22 @@ registerForm.addEventListener('submit', async (event) => {
   submitBtn.disabled = true;
 
   try {
-    const response = await fetch('/api/register', {
+    const response = await fetch('/api/registrar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'No se pudo registrar.');
+      throw new Error(data.error || 'No fue posible registrar.');
     }
 
     showMessage(data.message, 'success');
-    await loadTodayRecords();
+    await loadRecords();
 
     if (data.action === 'salida') {
       resetForm();
-    } else if (lastFound) {
-      nombreInput.readOnly = Boolean(nombreInput.value);
     }
   } catch (error) {
     showMessage(error.message, 'error');
@@ -198,9 +193,12 @@ registerForm.addEventListener('submit', async (event) => {
   }
 });
 
-clearBtn.addEventListener('click', resetForm);
+clearBtn.addEventListener('click', () => {
+  clearAutofill();
+  resetForm();
+});
 
-formatDateTime();
-setInterval(formatDateTime, 1000);
-loadTodayRecords();
+setClock();
+setInterval(setClock, 1000);
+loadRecords();
 runInput.focus();
