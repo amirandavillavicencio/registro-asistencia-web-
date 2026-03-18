@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIAC Registro</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">CIAC Registro</p>
+      <h1>Registro de asistencia y uso del CIAC</h1>
+      <p class="subtle">Aplicación local con backend Node.js y SQLite.</p>
+    </div>
+    <div class="status-card">
+      <div><strong>Fecha</strong><span id="currentDate"></span></div>
+      <div><strong>Hora</strong><span id="currentTime"></span></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel form-panel">
+      <div class="section-title-row">
+        <h2>Registro diario</h2>
+        <span id="matrizStatus" class="badge"></span>
+      </div>
+      <form id="attendanceForm">
+        <div class="grid cols-4">
+          <label><span>Campus</span><select id="campus" required></select></label>
+          <label><span>RUN</span><input id="run" inputmode="numeric" autocomplete="off" maxlength="12" required /></label>
+          <label><span>DV</span><input id="dv" maxlength="1" autocomplete="off" required /></label>
+          <label><span>Jornada</span><select id="jornada"></select></label>
+          <label class="col-span-2"><span>Nombre</span><input id="nombre" /></label>
+          <label class="col-span-2"><span>Carrera</span><select id="carrera"></select></label>
+          <label><span>Año de ingreso</span><select id="anioIngreso"></select></label>
+          <label><span>Semestre estimado</span><input id="semestreEstimado" readonly /></label>
+          <label><span>Actividad</span><select id="actividad"></select></label>
+          <label><span>Temática</span><select id="tematica"></select></label>
+          <label><span>Espacio</span><select id="espacio"></select></label>
+          <label class="col-span-4"><span>Observaciones</span><textarea id="observaciones" rows="3"></textarea></label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Registrar</button>
+          <button type="button" id="clearBtn">Limpiar</button>
+          <button type="button" id="exportBtn">Exportar Excel</button>
+          <button type="button" id="reportBtn">Informe de uso</button>
+        </div>
+      </form>
+      <p id="feedback" class="feedback"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Últimos registros del día</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora entrada</th><th>Hora salida</th><th>RUN</th><th>Nombre</th><th>Carrera</th><th>Actividad</th><th>Estado</th><th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="reportDialog">
+    <div class="dialog-header">
+      <h2>Informe de uso</h2>
+      <button id="closeReportBtn" type="button">Cerrar</button>
+    </div>
+    <div id="reportContent"></div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

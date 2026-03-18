@@ -1,0 +1,12 @@
+{
+  "name": "ciac-registro",
+  "version": "1.0.0",
+  "description": "CIAC Registro - asistencia y uso del CIAC",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "init-db": "node scripts/init-db.js",
+    "test": "node scripts/smoke-test.js"
+  }
+}
